@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>感情数据分析 · 专业版</title>
+  <script src="https://registry.npmmirror.com/echarts/5.5.0/files/dist/echarts.min.js"></script>
+  <script src="https://registry.npmmirror.com/dayjs/1.11.10/files/dayjs.min.js"></script>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#e0e0e0;min-height:100vh;padding:20px}
+    .app{max-width:1400px;margin:0 auto}
+    .tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+    .tabs button{background:rgba(255,255,255,0.1);border:none;color:#ccc;padding:10px 24px;border-radius:30px;cursor:pointer;font-weight:500;transition:.2s}
+    .tabs button.active{background:#ff4d6d;color:white}
+    .panel{display:none}
+    .panel.active{display:block}
+    .card{background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);border-radius:20px;padding:20px;margin-bottom:20px;border:1px solid rgba(255,255,255,0.08)}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+    @media(max-width:800px){.grid2{grid-template-columns:1fr}}
+    input,select,textarea{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;color:white;margin-bottom:12px}
+    button.primary{background:#ff4d6d;border:none;color:white;padding:12px 24px;border-radius:30px;cursor:pointer;font-weight:600}
+    .chat-window{height:400px;overflow-y:auto;background:rgba(0,0,0,0.2);border-radius:16px;padding:16px;margin-bottom:16px}
+    .msg{display:flex;margin-bottom:12px}
+    .msg.user{justify-content:flex-end}
+    .msg.other{justify-content:flex-start}
+    .bubble{max-width:70%;padding:10px 16px;border-radius:18px;background:#2a2a4a;color:white}
+    .msg.user .bubble{background:#ff4d6d}
+    .slider-group{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .slider-group input[type=range]{flex:1;margin:0}
+    .completeness-bar{height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px;overflow:hidden}
+    .completeness-fill{height:100%;background:linear-gradient(90deg,#f9d423,#ff4d6d);width:0%;transition:width .3s}
+    .advice-box{background:rgba(255,215,0,0.08);border-left:4px solid #f9d423;padding:18px;border-radius:16px;margin-top:16px;min-height:80px;white-space:pre-line}
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="tabs">
+    <button class="active" data-tab="upload">📤 导入数据</button>
+    <button data-tab="profile">🧑 对象画像</button>
+    <button data-tab="visual">📊 可视化分析</button>
+    <button data-tab="chat">💬 模拟聊天</button>
+  </div>
+
+  <div id="panel-upload" class="panel active">
+    <div class="card">
+      <h3>📂 多格式上传 (截图/PDF/Word/TXT)</h3>
+      <p style="color:#aaa;margin-bottom:12px">支持微信/QQ截图、聊天记录导出的PDF/Word。系统会自动识别说话人。</p>
+      <input type="file" id="fileInput" multiple accept="image/*,.pdf,.docx,.txt">
+      <div style="margin:12px 0;display:flex;align-items:center;gap:12px">
+        <button id="uploadBtn" class="primary">🚀 开始解析</button>
+        <span id="uploadStatus"></span>
+      </div>
+      <div id="parseResult" style="font-size:0.9rem;color:#f9d423"></div>
+      <div id="progressContainer" style="display:none; margin-top:16px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span id="progressLabel">解析中...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div style="height:10px; background:rgba(255,255,255,0.1); border-radius:5px; overflow:hidden;">
+          <div id="progressBarFill" style="width:0%; height:100%; background:linear-gradient(90deg,#f9d423,#ff4d6d); transition:width 0.3s;"></div>
+        </div>
+        <div id="progressDetail" style="margin-top:4px; font-size:0.8rem; color:#aaa;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-profile" class="panel">
+    <div class="card">
+      <h3>✨ 对方画像</h3>
+      <div class="grid2">
+        <div>
+          <label>昵称</label><input type="text" id="nickname" placeholder="例如：小可爱">
+          <label>性别</label>
+          <select id="gender"><option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="nonbinary">非二元</option></select>
+          <label>出生日期</label><input type="date" id="birthdate">
+          <label>星座 (自动)</label><input type="text" id="zodiac" readonly>
+          <label>MBTI</label>
+          <select id="mbti"><option value="">未知</option>
+            <option>INTJ</option><option>INTP</option><option>ENTJ</option><option>ENTP</option>
+            <option>INFJ</option><option>INFP</option><option>ENFJ</option><option>ENFP</option>
+            <option>ISTJ</option><option>ISFJ</option><option>ESTJ</option><option>ESFJ</option>
+            <option>ISTP</option><option>ISFP</option><option>ESTP</option><option>ESFP</option>
+          </select>
+        </div>
+        <div>
+          <label>大五人格</label>
+          <div class="slider-group"><span style="width:80px">开放性</span><input type="range" id="openness" min="0" max="1" step="0.1" value="0.5"><span id="openness-val">0.5</span></div>
+          <div class="slider-group"><span style="width:80px">尽责性</span><input type="range" id="conscientiousness" min="0" max="1" step="0.1" value="0.5"><span id="conscientiousness-val">0.5</span></div>
+          <div class="slider-group"><span style="width:80px">外向性</span><input type="range" id="extraversion" min="0" max="1" step="0.1" value="0.5"><span id="extraversion-val">0.5</span></div>
+          <div class="slider-group"><span style="width:80px">宜人性</span><input type="range" id="agreeableness" min="0" max="1" step="0.1" value="0.5"><span id="agreeableness-val">0.5</span></div>
+          <div class="slider-group"><span style="width:80px">神经质</span><input type="range" id="neuroticism" min="0" max="1" step="0.1" value="0.5"><span id="neuroticism-val">0.5</span></div>
+          <button id="saveProfile" class="primary" style="margin-top:10px">💾 保存画像</button>
+          <div class="completeness-bar"><div id="completenessFill" class="completeness-fill"></div></div>
+          <small style="color:#888">信息越完整，AI建议越精准</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-visual" class="panel">
+    <div class="grid2">
+      <div class="card"><h3>📅 情绪日历热力图</h3><div id="chartCalendar" style="height:300px"></div></div>
+      <div class="card"><h3>🌊 情绪河流</h3><div id="chartRiver" style="height:300px"></div></div>
+    </div>
+    <div class="grid2" style="margin-top:20px">
+      <div class="card"><h3>🎈 VA散点图</h3><div id="chartScatter" style="height:300px"></div></div>
+      <div class="card"><h3>🧠 AI 对策</h3><div id="adviceBox" class="advice-box">暂无数据</div><button id="refreshAdvice" class="primary" style="margin-top:12px">🔄 刷新建议</button></div>
+    </div>
+  </div>
+
+  <div id="panel-chat" class="panel">
+    <div class="card">
+      <h3>💬 与“对方”模拟聊天</h3>
+      <p style="color:#aaa;margin-bottom:12px">基于已分析的聊天记录，AI 将模仿对方的语气和性格。</p>
+      <div id="chatWindow" class="chat-window"><div style="color:#888;text-align:center">👋 输入消息开始模拟对话</div></div>
+      <div style="display:flex;gap:10px">
+        <input type="text" id="userMsgInput" placeholder="输入你的消息..." style="flex:1">
+        <button id="sendMsgBtn" class="primary">发送</button>
+      </div>
+      <div style="margin-top:8px;font-size:0.8rem;color:#888">⚠️ 若数据不足，模拟准确度会降低。建议至少导入100条对话。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========= 全局状态 =========
+  let emotionRecords = [];
+  let profile = {};
+
+  // ========= 标签切换 =========
+  document.querySelectorAll('.tabs button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+      if (btn.dataset.tab === 'visual') renderAllCharts();
+    });
+  });
+
+  // ========= 画像逻辑 =========
+  function getZodiac(dateStr) {
+    if (!dateStr) return '';
+    var d = dayjs(dateStr);
+    var m = d.month()+1, day = d.date();
+    if((m===3&&day>=21)||(m===4&&day<=19)) return '白羊座';
+    if((m===4&&day>=20)||(m===5&&day<=20)) return '金牛座';
+    if((m===5&&day>=21)||(m===6&&day<=21)) return '双子座';
+    if((m===6&&day>=22)||(m===7&&day<=22)) return '巨蟹座';
+    if((m===7&&day>=23)||(m===8&&day<=22)) return '狮子座';
+    if((m===8&&day>=23)||(m===9&&day<=22)) return '处女座';
+    if((m===9&&day>=23)||(m===10&&day<=23)) return '天秤座';
+    if((m===10&&day>=24)||(m===11&&day<=22)) return '天蝎座';
+    if((m===11&&day>=23)||(m===12&&day<=21)) return '射手座';
+    if((m===12&&day>=22)||(m===1&&day<=19)) return '摩羯座';
+    if((m===1&&day>=20)||(m===2&&day<=18)) return '水瓶座';
+    if((m===2&&day>=19)||(m===3&&day<=20)) return '双鱼座';
+    return '';
+  }
+  document.getElementById('birthdate').addEventListener('change', function(){
+    document.getElementById('zodiac').value = getZodiac(this.value);
+  });
+  ['openness','conscientiousness','extraversion','agreeableness','neuroticism'].forEach(function(s) {
+    document.getElementById(s).addEventListener('input', function(){
+      document.getElementById(s+'-val').textContent = parseFloat(this.value).toFixed(1);
+    });
+  });
+  function collectProfile() {
+    profile = {
+      nickname: document.getElementById('nickname').value,
+      gender: document.getElementById('gender').value,
+      birthDate: document.getElementById('birthdate').value,
+      zodiac: document.getElementById('zodiac').value,
+      mbti: document.getElementById('mbti').value,
+      openness: +document.getElementById('openness').value,
+      conscientiousness: +document.getElementById('conscientiousness').value,
+      extraversion: +document.getElementById('extraversion').value,
+      agreeableness: +document.getElementById('agreeableness').value,
+      neuroticism: +document.getElementById('neuroticism').value,
+    };
+    localStorage.setItem('partnerProfile', JSON.stringify(profile));
+    updateCompleteness();
+  }
+  function loadProfile() {
+    var stored = localStorage.getItem('partnerProfile');
+    if (stored) {
+      try {
+        profile = JSON.parse(stored);
+        document.getElementById('nickname').value = profile.nickname || '';
+        document.getElementById('gender').value = profile.gender || '';
+        document.getElementById('birthdate').value = profile.birthDate || '';
+        document.getElementById('zodiac').value = profile.zodiac || getZodiac(profile.birthDate);
+        document.getElementById('mbti').value = profile.mbti || '';
+        document.getElementById('openness').value = profile.openness || 0.5;
+        document.getElementById('conscientiousness').value = profile.conscientiousness || 0.5;
+        document.getElementById('extraversion').value = profile.extraversion || 0.5;
+        document.getElementById('agreeableness').value = profile.agreeableness || 0.5;
+        document.getElementById('neuroticism').value = profile.neuroticism || 0.5;
+        ['openness','conscientiousness','extraversion','agreeableness','neuroticism'].forEach(function(s) {
+          document.getElementById(s+'-val').textContent = parseFloat(document.getElementById(s).value).toFixed(1);
+        });
+      }catch(e){}
+    }
+    updateCompleteness();
+  }
+  function updateCompleteness() {
+    var filled = 0;
+    if (profile.nickname) filled++;
+    if (profile.gender) filled++;
+    if (profile.birthDate) filled++;
+    if (profile.mbti) filled++;
+    document.getElementById('completenessFill').style.width = (filled/4*100)+'%';
+  }
+  document.getElementById('saveProfile').addEventListener('click', collectProfile);
+  loadProfile();
+
+  // ========= 数据上传与解析（含进度条） =========
+  document.getElementById('uploadBtn').addEventListener('click', async function(){
+    var files = document.getElementById('fileInput').files;
+    if(!files.length) return alert('请选择文件');
+    var status = document.getElementById('uploadStatus');
+    status.textContent = '上传中...';
+
+    var progressContainer = document.getElementById('progressContainer');
+    progressContainer.style.display = 'block';
+    document.getElementById('progressBarFill').style.width = '0%';
+    document.getElementById('progressPercent').textContent = '0%';
+    document.getElementById('progressLabel').textContent = '开始解析...';
+    document.getElementById('progressDetail').textContent = '';
+
+    var formData = new FormData();
+    for(var i=0; i<files.length; i++) formData.append('files', files[i]);
+
+    try {
+      var res = await fetch('/api/parse', {method:'POST', body:formData});
+      var json = await res.json();
+      if(!json.success) {
+        status.textContent = '失败: '+json.error;
+        progressContainer.style.display = 'none';
+        return;
+      }
+      var taskId = json.taskId;
+      status.textContent = '任务已启动...';
+
+      var pollInterval = setInterval(async function(){
+        var progRes = await fetch('/api/task/'+taskId+'/progress');
+        var prog = await progRes.json();
+        if(!prog || prog.status === 'error') {
+          clearInterval(pollInterval);
+          status.textContent = '失败: '+ (prog.error || '未知错误');
+          document.getElementById('progressLabel').textContent = '解析失败';
+          document.getElementById('progressDetail').textContent = prog.message || '';
+          return;
+        }
+
+        document.getElementById('progressBarFill').style.width = prog.progress + '%';
+        document.getElementById('progressPercent').textContent = prog.progress + '%';
+        document.getElementById('progressLabel').textContent = prog.message;
+        var detail = '已识别 ' + prog.parsedCount + ' 条消息';
+        if(prog.estimate) {
+          detail += ' | 预计剩余 ' + prog.estimate + ' 秒';
+        }
+        document.getElementById('progressDetail').textContent = detail;
+
+        if(prog.status === 'completed') {
+          clearInterval(pollInterval);
+          status.textContent = '完成';
+          var resultRes = await fetch('/api/task/'+taskId+'/result');
+          var resultJson = await resultRes.json();
+          if(resultJson.success) {
+            emotionRecords = resultJson.data;
+            document.getElementById('parseResult').innerHTML = '✅ 解析成功！共 '+emotionRecords.length+' 条消息。说话人：'+resultJson.speakers.join(' 和 ');
+            localStorage.setItem('emotionRecords', JSON.stringify(emotionRecords));
+            if(document.getElementById('panel-visual').classList.contains('active')) renderAllCharts();
+          } else {
+            document.getElementById('parseResult').innerHTML = '❌ 获取结果失败';
+          }
+          setTimeout(function(){ progressContainer.style.display = 'none'; }, 5000);
+        }
+      }, 1000);
+    } catch(e) {
+      status.textContent = '网络错误或后端未启动';
+      console.error(e);
+    }
+  });
+
+  // 加载本地存储数据
+  var savedData = localStorage.getItem('emotionRecords');
+  if(savedData) {
+    try { emotionRecords = JSON.parse(savedData); } catch(e){}
+  }
+
+  // ========= 可视化 =========
+  var calendarChart, riverChart, scatterChart;
+  function initCharts() {
+    if (!calendarChart) calendarChart = echarts.init(document.getElementById('chartCalendar'));
+    if (!riverChart) riverChart = echarts.init(document.getElementById('chartRiver'));
+    if (!scatterChart) scatterChart = echarts.init(document.getElementById('chartScatter'));
+  }
+  function renderCalendar() {
+    if(!calendarChart || !emotionRecords.length) return;
+    var map = new Map();
+    emotionRecords.forEach(function(d) {
+      if(!d.date) return;
+      if(!map.has(d.date)) map.set(d.date, []);
+      map.get(d.date).push(d.valence || 0);
+    });
+    var heatData = [];
+    map.forEach(function(vals, date) {
+      heatData.push([date, +(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(2)]);
+    });
+    heatData.sort(function(a,b){return a[0].localeCompare(b[0]);});
+    calendarChart.setOption({
+      tooltip:{formatter:function(p){return p.data[0]+' 效价:'+p.data[1];}},
+      visualMap:{min:-1,max:1,inRange:{color:['#313695','#4575b4','#74add1','#fee090','#fdae61','#f46d43','#d73027']}},
+      calendar:{range:[heatData[0]?heatData[0][0]:dayjs().format('YYYY-MM-DD'), heatData[heatData.length-1]?heatData[heatData.length-1][0]:dayjs().format('YYYY-MM-DD')],cellSize:['auto',20]},
+      series:[{type:'heatmap',coordinateSystem:'calendar',data:heatData}]
+    });
+  }
+  function renderRiver() {
+    if(!riverChart || !emotionRecords.length) return;
+    var dates = emotionRecords.map(function(d){return d.date;});
+    riverChart.setOption({
+      tooltip:{trigger:'axis'},
+      legend:{data:['效价','唤醒度'],textStyle:{color:'#ccc'}},
+      xAxis:{type:'category',data:dates,axisLabel:{rotate:45,fontSize:10}},
+      yAxis:{type:'value',min:-1,max:1},
+      series:[
+        {name:'效价',type:'line',data:emotionRecords.map(function(d){return d.valence;}),smooth:true,lineStyle:{color:'#f9d423'},areaStyle:{color:'rgba(249,212,35,0.2)'}},
+        {name:'唤醒度',type:'line',data:emotionRecords.map(function(d){return d.arousal;}),smooth:true,lineStyle:{color:'#ff4d6d'},areaStyle:{color:'rgba(255,77,109,0.2)'}}
+      ]
+    });
+  }
+  function renderScatter() {
+    if(!scatterChart || !emotionRecords.length) return;
+    var colors = {joy:'#f9d423',sadness:'#4575b4',anger:'#d73027',surprise:'#f46d43',love:'#e31a1c',anxiety:'#6a3d9a'};
+    var seriesMap = {};
+    emotionRecords.forEach(function(d) {
+      if(!seriesMap[d.emotion]) seriesMap[d.emotion] = [];
+      seriesMap[d.emotion].push([d.valence, d.arousal, d.intensity || 0.5]);
+    });
+    scatterChart.setOption({
+      tooltip:{formatter:function(p){return p.seriesName+' 效价:'+p.data[0].toFixed(2)+' 唤醒:'+p.data[1].toFixed(2);}},
+      legend:{data:Object.keys(seriesMap),textStyle:{color:'#ccc'}},
+      xAxis:{name:'valence',min:-1,max:1},
+      yAxis:{name:'arousal',min:0,max:1},
+      series:Object.entries(seriesMap).map(function(entry) {
+        var name = entry[0], data = entry[1];
+        return {name:name,type:'scatter',data:data,symbolSize:function(val){return Math.max(8, val[2]*20);},itemStyle:{color:colors[name]||'#ccc'}};
+      })
+    });
+  }
+  function renderAllCharts() {
+    initCharts();
+    renderCalendar(); renderRiver(); renderScatter();
+    generateAdvice();
+  }
+  function generateAdvice() {
+    var box = document.getElementById('adviceBox');
+    if(!emotionRecords.length) { box.innerText = '暂无数据'; return; }
+    var recent = emotionRecords.slice(-7);
+    var sumV = 0;
+    recent.forEach(function(d){ sumV += d.valence || 0; });
+    var avgV = sumV / recent.length;
+    var count = {};
+    recent.forEach(function(d){ count[d.emotion] = (count[d.emotion]||0)+1; });
+    var dominant = Object.entries(count).sort(function(a,b){return b[1]-a[1];})[0];
+    dominant = dominant ? dominant[0] : '未知';
+    var base = avgV < -0.3 ? '近期情绪偏低，建议主动关心' : (avgV > 0.3 ? '关系状态良好，可规划未来' : '情绪平稳，可制造小惊喜');
+    var personal = '';
+    if(profile.mbti){
+      if(profile.mbti.startsWith('I')) personal += '对方内向，给予独处空间；';
+      if(profile.mbti.startsWith('E')) personal += '对方外向，多社交；';
+      if(profile.mbti.includes('F')) personal += '重情感共鸣；';
+      if(profile.mbti.includes('T')) personal += '用逻辑沟通；';
+    }
+    if(profile.zodiac){
+      if(/巨蟹|双鱼/.test(profile.zodiac)) personal += '水象敏感需呵护；';
+      if(/白羊|射手/.test(profile.zodiac)) personal += '火象直接表达爱；';
+    }
+    if(profile.neuroticism && profile.neuroticism > 0.7) personal += '情绪易波动，保持耐心；';
+    var adviceText = '📌 主导情绪：' + dominant + '，平均效价' + avgV.toFixed(2) + '。' + base;
+    if(personal) adviceText += '\n🎯 个性化：' + personal;
+    else adviceText += '（画像信息不足）';
+    box.innerText = adviceText;
+  }
+  document.getElementById('refreshAdvice').addEventListener('click', generateAdvice);
+
+  // ========= 模拟聊天 =========
+  var chatWindow = document.getElementById('chatWindow');
+  var userInput = document.getElementById('userMsgInput');
+  function addMessage(text, sender) {
+    var div = document.createElement('div');
+    div.className = 'msg ' + sender;
+    div.innerHTML = '<div class="bubble">' + text + '</div>';
+    chatWindow.appendChild(div);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+  document.getElementById('sendMsgBtn').addEventListener('click', async function(){
+    var msg = userInput.value.trim();
+    if(!msg) return;
+    addMessage(msg, 'user');
+    userInput.value = '';
+    if(emotionRecords.length < 20) {
+      addMessage('（数据较少，模拟可能不准）', 'other');
+    }
+    try {
+      var res = await fetch('/api/chat', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          message: msg,
+          history: emotionRecords.slice(-100),
+          partnerProfile: profile
+        })
+      });
+      var json = await res.json();
+      addMessage(json.reply || '（无回复）', 'other');
+    } catch(e) {
+      addMessage('（连接失败）', 'other');
+    }
+  });
+  userInput.addEventListener('keypress', function(e) {
+    if(e.key === 'Enter') document.getElementById('sendMsgBtn').click();
+  });
+</script>
+</body>
+</html>
